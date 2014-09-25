@@ -18,6 +18,8 @@ class ArcherBot {
 
         // Initally set the target
         $this->strTarget = (string)$strTarget;
+
+        $this->parseOutFiles();
     }
 
     public function setTarget($strTarget) {
@@ -69,15 +71,14 @@ class ArcherBot {
 
                             if(false !== stristr($mxdJavascriptFile, $strCheck)) {
 
-                                $this->arrFindings[$strKey] = $strCheck;
+                                $this->arrFindings[$strKey]['url'] = $strUrl;
+                                $this->arrFindings[$strKey]['vulnerability'] = $strCheck;
                             }
                         }
                     }
                 }
             }
         });
-
-        return $this->generateReport();
     }
 
     public function generateReport() {
@@ -90,7 +91,7 @@ class ArcherBot {
         } else {
 
             foreach($this->arrFindings as $strKey => $arrValues) {
-                $strOut .= sprintf("Case: %1$s has %2$d vulnerabilities:\r\n%3$s", $strKey, count($arrValues), print_r($arrValues, true));
+                $strOut .= sprintf("Case: %s has %d vulnerabilities:\r\n%s", $strKey, count($arrValues), print_r($arrValues, true));
             }
         }
 
@@ -102,5 +103,5 @@ if(count($argv) >= 2) {
 
     $archer = new ArcherBot($argv[1]);
 
-    $archer->generateReport();
+    echo $archer->generateReport();
 }
