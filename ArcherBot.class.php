@@ -34,9 +34,24 @@ class ArcherBot {
 
     public function parseOutFiles() {
 
-        $objCrawler = $this->objGoutte->request('GET', $this->strTarget);
+        try {
+            $objCrawler = $this->objGoutte->request('GET', $this->strTarget);
+        } catch (GuzzleHttp\Exception\RequestException $e) {
+            throw new \Exception('Could not query target.');
+        }
+        if (($request instanceof Symfony\Component\DomCrawler\Crawler) === false) {
+            throw new \Exception('No DOM was returned.');
+        }
+        if ($client->getResponse()->getStatus() != '200') {
+            throw new \Exception('Request Status was not 200.');
+        }
+        
 
         $this->arrFindings['count'] = 0;
+        
+        if ($objCrawler->filter('script')->count() == 0) {
+            return false;
+        }
 
         $objCrawler->filter('script')->each(function($objNode){
 
