@@ -92,6 +92,7 @@ class ArcherBot {
                             if(false !== stristr($mxdJavascriptFile, $strCheck)) {
 
                                 $this->arrFindings[$strKey]['url'] = $strUrl;
+
                                 $this->arrFindings[$strKey]['vulnerability'] = $strCheck;
                             }
                         }
