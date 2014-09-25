@@ -39,16 +39,17 @@ class ArcherBot {
         } catch (GuzzleHttp\Exception\RequestException $e) {
             throw new \Exception('Could not query target.');
         }
-        if (($request instanceof Symfony\Component\DomCrawler\Crawler) === false) {
+
+        if (($objCrawler instanceof \Symfony\Component\DomCrawler\Crawler) === false) {
             throw new \Exception('No DOM was returned.');
         }
-        if ($client->getResponse()->getStatus() != '200') {
+
+        if ($this->objGoutte->getResponse()->getStatus() != '200') {
             throw new \Exception('Request Status was not 200.');
         }
-        
 
         $this->arrFindings['count'] = 0;
-        
+
         if ($objCrawler->filter('script')->count() == 0) {
             return false;
         }
@@ -84,37 +85,51 @@ class ArcherBot {
                 $strUrl = 'http:' . $strUrl;
             }
 
-            $ch = curl_init($strUrl);
+            $this->performChecks($strUrl);
+        });
+    }
 
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-            curl_setopt($ch, CURLOPT_HEADER, true);
+    public function performChecks($strUrl) {
 
-            $mxdJavascriptFile = curl_exec($ch);
+        $strFileContents = $this->getFileContents($strUrl);
 
-            curl_close($ch);
+        if(false !== $strFileContents) {
 
-            if(false !== $mxdJavascriptFile) {
+            ++$this->arrFindings['count'];
 
-                ++$this->arrFindings['count'];
+            foreach($this->arrChecks as $strKey => $arrCheck){
 
-                foreach($this->arrChecks as $strKey => $arrCheck){
+                if(is_array($arrCheck) && !empty($arrCheck)) {
 
-                    if(is_array($arrCheck) && !empty($arrCheck)) {
+                    foreach($arrCheck as $strCheck) {
 
-                        foreach($arrCheck as $strCheck) {
+                        if(false !== stristr($strFileContents, $strCheck)) {
 
-                            if(false !== stristr($mxdJavascriptFile, $strCheck)) {
+                            $this->arrFindings[$strKey]['url'] = $strUrl;
 
-                                $this->arrFindings[$strKey]['url'] = $strUrl;
-
-                                $this->arrFindings[$strKey]['vulnerability'] = $strCheck;
-                            }
+                            $this->arrFindings[$strKey]['vulnerability'] = $strCheck;
                         }
                     }
                 }
             }
-        });
+        }
+
+        return $this->arrFindings;
+    }
+
+    public function getFileContents($strUrl) {
+
+        $ch = curl_init($strUrl);
+
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_HEADER, true);
+
+        $strResult = curl_exec($ch);
+
+        curl_close($ch);
+
+        return $strResult;
     }
 
     public function generateReport() {
