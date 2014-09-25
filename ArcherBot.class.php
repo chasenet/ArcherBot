@@ -40,8 +40,10 @@ class ArcherBot {
 
     public function parseOutFiles() {
 
-        $objSimpleCrawler = new \SimpleCrawler($this->strTarget, 2);
+        $objSimpleCrawler = new \SimpleCrawler($this->strTarget, 5);
+
         try {
+
             $objSimpleCrawler->traverse();
 
             $arrLinkDetails = $objSimpleCrawler->getLinksInfo();

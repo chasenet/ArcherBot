@@ -91,6 +91,8 @@ class SimpleCrawler {
 
         try {
             $client = new Client();
+            $client->getClient()->setDefaultOption('config/curl/'.CURLOPT_SSL_VERIFYPEER, false);
+            $client->getClient()->setDefaultOption('config/curl/'.CURLOPT_CERTINFO, false);
             $crawler = $client->request('GET', $url_to_traverse);
 
             $status_code = $client->getResponse()->getStatus();
