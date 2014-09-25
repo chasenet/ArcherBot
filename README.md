@@ -8,6 +8,7 @@ Requirements
 -------
 
 - PHP 5.3+
+- PHP DOMDocument
 - cURL
 
 All requirements are included within this project and installed by composer (except composer itself - http://getcomposer.org/)
