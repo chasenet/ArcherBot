@@ -5,12 +5,10 @@ require_once './vendor/autoload.php';
 class ArcherBot {
 
     protected $objGoutte;
-
-    protected $strTarget = '';
+    protected $strTarget    = '';
     protected $strUserAgent = '';
-    protected $arrChecks = array();
-    protected $arrFindings = array();
-
+    protected $arrChecks    = array();
+    protected $arrFindings  = array();
 
     public function __construct($strTarget) {
 
@@ -53,6 +51,10 @@ class ArcherBot {
             if((substr($strUrl, 0, 7) !== 'http://') && (substr($strUrl, 0, 8) !== 'https://') && (substr($strUrl, 0, 2) !== '//')) {
 
                 $strUrl = $this->strTarget . '/' . $mxdSrc;
+
+            } elseif((substr($strUrl, 0, 2) === '//')) {
+
+                $strUrl = 'http:' . $strUrl;
             }
 
             $mxdJavascriptFile = file_get_contents($strUrl);
@@ -65,7 +67,7 @@ class ArcherBot {
 
                         foreach($arrCheck as $strCheck) {
 
-                            if(false !== stristr($mxdJavascriptFile, $strCheck)){
+                            if(false !== stristr($mxdJavascriptFile, $strCheck)) {
 
                                 $this->arrFindings[$strKey] = $strCheck;
                             }
@@ -74,8 +76,31 @@ class ArcherBot {
                 }
             }
         });
+
+        return $this->generateReport();
+    }
+
+    public function generateReport() {
+
+        $strOut = '';
+
+        if(empty($this->arrFindings)) {
+
+            $strOut = 'Sorry, we couldn\'t find anything in the target specified.';
+        } else {
+
+            foreach($this->arrFindings as $strKey => $arrValues) {
+                $strOut .= sprintf("Case: %1$s has %2$d vulnerabilities:\r\n%3$s", $strKey, count($arrValues), print_r($arrValues, true));
+            }
+        }
+
+        return $strOut;
     }
 }
 
-$x = new ArcherBot('http://zeroclipboard.org/');
-$x->parseOutFiles();
+if(count($argv) >= 2) {
+
+    $archer = new ArcherBot($argv[1]);
+
+    $archer->generateReport();
+}
