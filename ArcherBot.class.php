@@ -1,6 +1,7 @@
 <?php namespace Pentest\ArcherBot;
 
 require_once './vendor/autoload.php';
+require_once './SimpleCrawler.class.php';
 
 class ArcherBot {
 
@@ -11,6 +12,11 @@ class ArcherBot {
     protected $arrFindings  = array();
 
     public function __construct($strTarget) {
+
+        if(!class_exists('DOMDocument')) {
+
+            throw new \Exception('DOMDocument is required to use this script');
+        }
 
         $this->objGoutte = new \Goutte\Client();
 
@@ -34,59 +40,79 @@ class ArcherBot {
 
     public function parseOutFiles() {
 
+        $objSimpleCrawler = new \SimpleCrawler($this->strTarget, 2);
         try {
-            $objCrawler = $this->objGoutte->request('GET', $this->strTarget);
-        } catch (GuzzleHttp\Exception\RequestException $e) {
-            throw new \Exception('Could not query target.');
-        }
+            $objSimpleCrawler->traverse();
 
-        if (($objCrawler instanceof \Symfony\Component\DomCrawler\Crawler) === false) {
-            throw new \Exception('No DOM was returned.');
-        }
+            $arrLinkDetails = $objSimpleCrawler->getLinksInfo();
 
-        if ($this->objGoutte->getResponse()->getStatus() != '200') {
-            throw new \Exception('Request Status was not 200.');
+        } catch(\Exception $e) {
+
+            throw new \Exception('Could not get link info');
         }
 
         $this->arrFindings['count'] = 0;
 
-        if ($objCrawler->filter('script')->count() == 0) {
-            return false;
+        if(is_array($arrLinkDetails) && !empty($arrLinkDetails)) {
+
+            foreach($arrLinkDetails as $arrLinks) {
+
+                if(!isset($arrLinks['original_urls']) || empty($arrLinks['original_urls'])) {
+
+                    continue;
+                }
+
+                $strLink = (is_array($arrLinks['original_urls']) && !empty($arrLinks['original_urls']) ? array_shift($arrLinks['original_urls']) : $arrLinks['original_urls']);
+
+                try {
+                    $objCrawler = $this->objGoutte->request('GET', $strLink);
+                } catch (GuzzleHttp\Exception\RequestException $e) {
+                    throw new \Exception('Could not query target.');
+                }
+
+                if (($objCrawler instanceof \Symfony\Component\DomCrawler\Crawler) === false) {
+                    throw new \Exception('No DOM was returned.');
+                }
+
+                if ($this->objGoutte->getResponse()->getStatus() != '200') {
+                    throw new \Exception('Request Status was not 200.');
+                }
+
+                if ($objCrawler->filter('script')->count() == 0) {
+                    return false;
+                }
+
+                ++$this->arrFindings['count'];
+
+                $objCrawler->filter('script')->each(function($objNode){
+
+                    $mxdSrc = $objNode->attr('src');
+
+                    // Make a copy
+                    $strUrl = $mxdSrc;
+
+                    // Check if it's relative or absolute path
+                    if((substr($strUrl, 0, 7) !== 'http://') && (substr($strUrl, 0, 8) !== 'https://') && (substr($strUrl, 0, 2) !== '//')) {
+
+                        // explode on slash
+                        $arrUrlParts = explode('/', $this->strTarget);
+
+                        // remove last part
+                        array_pop($arrUrlParts);
+
+                        $strUrl = implode($arrUrlParts, '/');
+
+                        $strUrl = $strUrl . '/' . $mxdSrc;
+
+                    } elseif((substr($strUrl, 0, 2) === '//')) {
+
+                        $strUrl = 'http:' . $strUrl;
+                    }
+
+                    $this->performChecks($strUrl);
+                });
+            }
         }
-
-        $objCrawler->filter('script')->each(function($objNode){
-
-            $mxdSrc = $objNode->attr('src');
-
-            if(is_null($mxdSrc)) {
-
-                // continue;
-                return false;
-            }
-
-            // Make a copy
-            $strUrl = $mxdSrc;
-
-            // Check if it's relative or absolute path
-            if((substr($strUrl, 0, 7) !== 'http://') && (substr($strUrl, 0, 8) !== 'https://') && (substr($strUrl, 0, 2) !== '//')) {
-
-                // explode on slash
-                $arrUrlParts = explode('/', $this->strTarget);
-
-                // remove last part
-                array_pop($arrUrlParts);
-
-                $strUrl = implode($arrUrlParts, '/');
-
-                $strUrl = $strUrl . '/' . $mxdSrc;
-
-            } elseif((substr($strUrl, 0, 2) === '//')) {
-
-                $strUrl = 'http:' . $strUrl;
-            }
-
-            $this->performChecks($strUrl);
-        });
     }
 
     public function performChecks($strUrl) {
@@ -94,8 +120,6 @@ class ArcherBot {
         $strFileContents = $this->getFileContents($strUrl);
 
         if(false !== $strFileContents) {
-
-            ++$this->arrFindings['count'];
 
             foreach($this->arrChecks as $strKey => $arrCheck){
 
@@ -131,6 +155,31 @@ class ArcherBot {
 
         return $strResult;
     }
+
+    public function crawlSite() {
+
+    }
+
+    protected function checkIfCrawlable($strUrl) {
+        if (empty($strUrl)) {
+            return false;
+        }
+
+        // Returned deadlinks
+        $arrStopLinks = array(
+            '@^javascript\:void\(0\)$@',
+            '@^#.*@',
+        );
+
+        foreach ($arrStopLinks as $strPattern) {
+            if (preg_match($strPattern, $strUrl)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
 
     public function generateReport() {
 
