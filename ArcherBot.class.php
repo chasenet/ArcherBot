@@ -36,6 +36,8 @@ class ArcherBot {
 
         $objCrawler = $this->objGoutte->request('GET', $this->strTarget);
 
+        $this->arrFindings['count'] = 0;
+
         $objCrawler->filter('script')->each(function($objNode){
 
             $mxdSrc = $objNode->attr('src');
@@ -52,16 +54,34 @@ class ArcherBot {
             // Check if it's relative or absolute path
             if((substr($strUrl, 0, 7) !== 'http://') && (substr($strUrl, 0, 8) !== 'https://') && (substr($strUrl, 0, 2) !== '//')) {
 
-                $strUrl = $this->strTarget . '/' . $mxdSrc;
+                // explode on slash
+                $arrUrlParts = explode('/', $this->strTarget);
+
+                // remove last part
+                array_pop($arrUrlParts);
+
+                $strUrl = implode($arrUrlParts, '/');
+
+                $strUrl = $strUrl . '/' . $mxdSrc;
 
             } elseif((substr($strUrl, 0, 2) === '//')) {
 
                 $strUrl = 'http:' . $strUrl;
             }
 
-            $mxdJavascriptFile = file_get_contents($strUrl);
+            $ch = curl_init($strUrl);
+
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($ch, CURLOPT_HEADER, true);
+
+            $mxdJavascriptFile = curl_exec($ch);
+
+            curl_close($ch);
 
             if(false !== $mxdJavascriptFile) {
+
+                ++$this->arrFindings['count'];
 
                 foreach($this->arrChecks as $strKey => $arrCheck){
 
@@ -85,12 +105,18 @@ class ArcherBot {
 
         $strOut = '';
 
+        $strOut .= sprintf("%d files searched\r\n", $this->arrFindings['count']);
+
+        unset($this->arrFindings['count']);
+
         if(empty($this->arrFindings)) {
 
-            $strOut = 'Sorry, we couldn\'t find anything in the target specified.';
+            $strOut .= 'Sorry, we couldn\'t find anything in the target specified.';
+
         } else {
 
             foreach($this->arrFindings as $strKey => $arrValues) {
+
                 $strOut .= sprintf("Case: %s has %d vulnerabilities:\r\n%s", $strKey, count($arrValues), print_r($arrValues, true));
             }
         }

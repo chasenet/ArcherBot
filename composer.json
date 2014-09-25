@@ -1,5 +1,6 @@
 {
     "require": {
-        "fabpot/goutte": "~2.0"
+        "fabpot/goutte": "~2.0",
+        "aza/thread": "~1.1"
     }
 }
