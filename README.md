@@ -17,7 +17,7 @@ All requirements are included within this project and installed by composer (exc
 Install & Usage
 -------
 
-- ```$> git clone https://github.com/richard-clifford/ArcherBot.git```
+- ```$> git clone https://github.com/chasenet/ArcherBot.git```
 - ```$> composer install```
 - ```$> chmod +x ./ArcherBot.php```
 - ```$> ./ArcherBot.php http://example.com/``` 
